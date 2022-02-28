@@ -5,22 +5,72 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract CYCOToken is ERC20, Ownable {
-    uint256 public updatedAt;
-    uint256 public releasePerSecond;
+abstract contract freezeERC20 is ERC20 {
+    event Freeze(address indexed from, uint256 value);
+    event Unfreeze(address indexed from, uint256 value);
 
+    mapping(address => uint256) private freezed;
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        require(
+            balanceOf(from) - amount >= freezed[from],
+            "ERC20Freeze: you have not enough unfreezed tokens"
+        );
+        super._transfer(from, to, amount);
+    }
+
+    // function freezedUnfreezed(address account, uint256 amount) public view virtual returns (bool) {
+    //     uint256 balance = balanceOf(account);
+    //     return balance - amount >= freezed[account];
+    // }
+
+    function freeze(uint256 amount) external {
+        _freeze(_msgSender(), amount);
+    }
+
+    function unfreeze(uint256 amount) external {
+        _unfreeze(_msgSender(), amount);
+    }
+
+    function _freeze(address from, uint256 amount) internal virtual {
+        require(from != address(0), "ERC20: freezing from the zero address");
+        uint256 fromBalance = this.balanceOf(from);
+        require(
+            fromBalance - freezed[from] >= amount,
+            "ERC20: freezing amount exceeds balance"
+        );
+
+        freezed[from] += amount;
+        emit Freeze(from, amount);
+    }
+
+    function _unfreeze(address from, uint256 amount) internal virtual {
+        require(from != address(0), "ERC20: unfreezing from the zero address");
+        uint256 fromFreezed = freezed[from];
+        require(
+            fromFreezed >= amount,
+            "ERC20: unfreezing amount exceeds balance"
+        );
+
+        freezed[from] -= amount;
+        emit Unfreeze(from, amount);
+    }
+
+    function freezedOf(address account) public view virtual returns (uint256) {
+        return freezed[account];
+    }
+}
+
+contract CYCOToken is freezeERC20, Ownable {
     // string public name     = "CryoCoin";
     // string public symbol   = "CYCO";
 
     constructor() ERC20("CryoCoin", "CYCO") {
-        _mint(owner(), 100000000 * 1000**18); //100 billion ^ 18
-        /* We have a fixed inflation without compounding effect
-         * There are 60 * 60 * 24 * 365 = 31536000 seconds in a year
-         * 10,000,000 FIGHT release each year, so 10000000 * 10 ^ 18 / 31536000 = 317097919837645900
-         * basically 0.3170979198376459 FIGHT release per second
-         */
-        releasePerSecond = 317097919837645900;
-        updatedAt = block.timestamp;
+        _mint(owner(), 100000000000 * 10**18); //100 billion * 10 ^ 18
     }
 
     receive() external payable {
@@ -31,19 +81,7 @@ contract CYCOToken is ERC20, Ownable {
         _burn(_msgSender(), amount);
     }
 
-    function releasedReadyAmount() public view returns (uint256) {
-        return (block.timestamp - updatedAt) * releasePerSecond;
-    }
-
-    function mint() external onlyOwner {
-        _mint(owner(), releasedReadyAmount());
-        updatedAt = block.timestamp;
-    }
-
-    function transferAnyStuckERC20Token(address tokenAddress, uint256 tokens)
-        external
-        onlyOwner
-    {
-        IERC20(tokenAddress).transfer(owner(), tokens);
+    function mint(uint256 amount) external onlyOwner {
+        _mint(owner(), amount);
     }
 }
