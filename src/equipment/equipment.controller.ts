@@ -51,6 +51,11 @@ export class EquipmentController {
         return await this.equipmentService.payRent(dto)
     }
 
+    @Post('rent/end')
+    async endRent(@Body() dto: PayRent) {
+        return await this.equipmentService.endRent(dto)
+    }
+
     @Get('get-rent')
     async getRent(@Query('seller') seller: string, @Query('tenant') tenant: string, @Query('id') id: string) {
         return await this.equipmentService.getRent(seller, tenant, parseInt(id))

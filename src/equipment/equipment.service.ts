@@ -182,12 +182,12 @@ export class EquipmentService {
         const network = await this.walletService.getNetworkBalance(wallet.address)
 
         //TODO: NETWORK FEE
-        const cost = parseFloat(this.web3Service.toEther(await this.web3Service.getCostOfTx(this.web3Service.cryoContract.methods.payRent(dto.seller, dto.id), wallet)))
+        const cost = parseFloat(this.web3Service.toEther(await this.web3Service.getCostOfTx(this.web3Service.cryoContract.methods.endRent(dto.seller, dto.id), wallet)))
         if (network < cost) throw new ValidationException([{
             field: 'amount',
             errors: ['You have not enough money to pay network fee']
         }])
-        const tx = this.web3Service.cryoContract.methods.payRent(dto.seller, dto.id);
+        const tx = this.web3Service.cryoContract.methods.endRent(dto.seller, dto.id);
         const signedTx = await this.web3Service.signTransaction(tx, wallet, dto.private_key, this.web3Service.cryoContract.options.address, '');
         const res = await this.web3Service.web3.eth.sendSignedTransaction(signedTx.rawTransaction);
     }
